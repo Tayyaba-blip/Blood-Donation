@@ -17,7 +17,7 @@ const RegisterDonor = () => {
     age: "",
     bloodGroup: "",
     district: "",
-    state: "",
+    province: "",
     pincode: "",
     month: "",
     year: "",
@@ -278,9 +278,9 @@ const RegisterDonor = () => {
             </div>
 
             <div>
-              <label>State *</label>
-              <select name="state" value={formData.state} onChange={handleChange} required>
-                <option value="">Select State</option>
+              <label>Province *</label>
+              <select name="province" value={formData.province} onChange={handleChange} required>
+                <option value="">Select Province</option>
                 <option>Punjab</option>
                 <option>Sindh</option>
                 <option>KPK</option>
