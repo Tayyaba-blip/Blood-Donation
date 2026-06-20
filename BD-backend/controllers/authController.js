@@ -149,7 +149,7 @@ export const verifyRegistrationOTP = async (req, res) => {
       age: donorData.age,
       bloodGroup: donorData.bloodGroup,
       district: donorData.district,
-      state: donorData.state,
+      province: donorData.province,
       pincode: donorData.pincode,
       lastDonation: {
         month: donorData.month || '',
