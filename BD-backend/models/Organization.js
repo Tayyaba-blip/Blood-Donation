@@ -85,7 +85,12 @@ province: { type: String, trim: true },
 
     // ── Log of every dispense (blood given to recipients) ──────────────────
     dispenseHistory: [dispenseEntrySchema],
+    location: {
+      type: { type: String, enum: ["Point"], default: "Point" },
+      coordinates: { type: [Number], default: [0, 0] }
+    }
   },
+  
   { timestamps: true }
 );
 
@@ -98,6 +103,8 @@ organizationSchema.pre("save", async function () {
 organizationSchema.methods.comparePassword = async function (entered) {
   return await bcrypt.compare(entered, this.password);
 };
+
+organizationSchema.index({ location: "2dsphere" });
 
 const Organization = mongoose.model("Organization", organizationSchema);
 export default Organization;

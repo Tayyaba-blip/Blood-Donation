@@ -9,16 +9,18 @@ export default function DonationHistory({ donor }) {
           <thead>
             <tr>
               <th className={styles.th}>Date</th>
-              <th className={styles.th}>Blood Units (ml)</th>
+              <th className={styles.th}>Units (ml)</th>
+              <th className={styles.th}>Organization</th>
               <th className={styles.th}>Location</th>
             </tr>
           </thead>
           <tbody>
-            {donor.donationHistory.map((entry, i) => (
+            {donor.donationHistory.map((d, i) => (
               <tr key={i}>
-                <td className={styles.td}>{entry.date}</td>
-                <td className={styles.td}>{entry.units}</td>
-                <td className={styles.td}>{entry.location || "—"}</td>
+                <td className={styles.td}>{d.date || "—"}</td>
+                <td className={styles.td}>{d.units ? `${d.units} ml` : "—"}</td>
+                <td className={styles.td}>{d.orgName || "—"}</td>
+                <td className={styles.td}>{d.location || "—"}</td>
               </tr>
             ))}
           </tbody>

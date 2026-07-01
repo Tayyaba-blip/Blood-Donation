@@ -1,9 +1,9 @@
 import Organization from "../models/Organization.js";
 import Donor from "../models/Donor.js";
+import Notification from "../models/Notification.js";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
-// Helper: get or init stock map on the org
 function buildStockMap(org) {
   const stock = {};
   BLOOD_GROUPS.forEach((bg) => {
@@ -12,9 +12,23 @@ function buildStockMap(org) {
   return stock;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/org/update-location
+export const updateOrgLocation = async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+    if (latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ error: "Latitude and longitude are required." });
+    }
+    await Organization.findByIdAndUpdate(req.orgId, {
+      location: { type: "Point", coordinates: [longitude, latitude] },
+    });
+    res.json({ message: "Location updated." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // GET /api/org/profile
-// ─────────────────────────────────────────────────────────────────────────────
 export const getOrgProfile = async (req, res) => {
   try {
     const org = await Organization.findById(req.orgId).select("-password");
@@ -25,12 +39,13 @@ export const getOrgProfile = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/org/donors
-// ─────────────────────────────────────────────────────────────────────────────
 export const getLinkedDonors = async (req, res) => {
   try {
-    const donors = await Donor.find({ linkedOrganization: req.orgId })
+    // ✅ updated: query linkedOrganizations array
+    const donors = await Donor.find({
+      "linkedOrganizations.organization": req.orgId,
+    })
       .select("-password")
       .sort({ createdAt: -1 });
     res.json(donors.map((d) => d.toJSON()));
@@ -39,14 +54,13 @@ export const getLinkedDonors = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/org/donors/:donorId
-// ─────────────────────────────────────────────────────────────────────────────
 export const getDonorById = async (req, res) => {
   try {
+    // ✅ updated: query linkedOrganizations array
     const donor = await Donor.findOne({
       _id: req.params.donorId,
-      linkedOrganization: req.orgId,
+      "linkedOrganizations.organization": req.orgId,
     }).select("-password");
     if (!donor) return res.status(404).json({ error: "Donor not found." });
     res.json(donor.toJSON());
@@ -55,11 +69,7 @@ export const getDonorById = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/org/donations/record
-// Donor gives blood → update donor history + increase org stock
-// Body: { donorId, units, date, location }
-// ─────────────────────────────────────────────────────────────────────────────
 export const recordDonation = async (req, res) => {
   try {
     const { donorId, units, date, location } = req.body;
@@ -68,7 +78,15 @@ export const recordDonation = async (req, res) => {
       return res.status(400).json({ error: "donorId, units and date are required." });
     }
 
-    const donor = await Donor.findOne({ _id: donorId, linkedOrganization: req.orgId });
+    // ✅ single org fetch, no duplicate declaration
+    const org = await Organization.findById(req.orgId);
+    if (!org) return res.status(404).json({ error: "Organization not found." });
+
+    // ✅ updated: query linkedOrganizations array
+    const donor = await Donor.findOne({
+      _id: donorId,
+      "linkedOrganizations.organization": req.orgId,
+    });
     if (!donor) return res.status(404).json({ error: "Donor not found or not linked to your organization." });
 
     if (!donor.isEligible) {
@@ -82,17 +100,22 @@ export const recordDonation = async (req, res) => {
       return res.status(400).json({ error: "Donor has no blood group set in their profile." });
     }
 
-    // 1. Update donor record
-    donor.donationHistory.push({ date, units: Number(units), location: location || "" });
+    // Update donor record
+    donor.donationHistory.push({
+      date,
+      units: Number(units),
+      location: location || "",
+      orgId: req.orgId,
+      orgName: org.organizationName,
+    });
     donor.lastDonationDate = date;
     await donor.save();
 
-    // 2. Increase org blood stock for that blood group
-    const org = await Organization.findById(req.orgId);
+    // Increase org blood stock
     if (!org.bloodStock) org.bloodStock = new Map();
     const current = org.bloodStock.get(bloodGroup) || 0;
     org.bloodStock.set(bloodGroup, current + Number(units));
-    org.markModified("bloodStock"); // needed for Map fields in Mongoose
+    org.markModified("bloodStock");
     await org.save();
 
     res.json({
@@ -106,11 +129,7 @@ export const recordDonation = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/org/stock/dispense
-// Blood is given to a recipient → decrease org stock
-// Body: { bloodGroup, units, recipientName, date }
-// ─────────────────────────────────────────────────────────────────────────────
 export const dispenseBlood = async (req, res) => {
   try {
     const { bloodGroup, units, recipientName, date } = req.body;
@@ -133,11 +152,9 @@ export const dispenseBlood = async (req, res) => {
       });
     }
 
-    // Decrease stock
     org.bloodStock.set(bloodGroup, current - Number(units));
     org.markModified("bloodStock");
 
-    // Log it in dispenseHistory
     if (!org.dispenseHistory) org.dispenseHistory = [];
     org.dispenseHistory.push({
       bloodGroup,
@@ -158,43 +175,41 @@ export const dispenseBlood = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/org/stock
-// Get current blood stock levels
-// ─────────────────────────────────────────────────────────────────────────────
 export const getStock = async (req, res) => {
   try {
     const org = await Organization.findById(req.orgId).select("bloodStock dispenseHistory");
     if (!org) return res.status(404).json({ error: "Organization not found." });
     res.json({
       bloodStock: buildStockMap(org),
-      dispenseHistory: (org.dispenseHistory || []).slice(-20).reverse(), // last 20
+      dispenseHistory: (org.dispenseHistory || []).slice(-20).reverse(),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/org/stats
-// ─────────────────────────────────────────────────────────────────────────────
 export const getOrgStats = async (req, res) => {
   try {
     const [donors, org] = await Promise.all([
-      Donor.find({ linkedOrganization: req.orgId }),
+      // ✅ updated: query linkedOrganizations array
+      Donor.find({ "linkedOrganizations.organization": req.orgId }),
       Organization.findById(req.orgId).select("bloodStock dispenseHistory"),
     ]);
 
-    const total        = donors.length;
-    const eligible     = donors.filter((d) => d.isEligible).length;
-    const notEligible  = total - eligible;
+    const total       = donors.length;
+    const eligible    = donors.filter((d) => d.isEligible).length;
+    const notEligible = total - eligible;
 
     const bloodGroups = {};
     donors.forEach((d) => {
       if (d.bloodGroup) bloodGroups[d.bloodGroup] = (bloodGroups[d.bloodGroup] || 0) + 1;
     });
 
-    const totalDonations = donors.reduce((sum, d) => sum + (d.donationHistory?.length || 0), 0);
+    const totalDonations = donors.reduce(
+      (sum, d) => sum + (d.donationHistory?.length || 0), 0
+    );
 
     const allDonations = [];
     donors.forEach((d) => {
@@ -216,9 +231,9 @@ export const getOrgStats = async (req, res) => {
       notEligible,
       bloodGroups,
       totalDonations,
-      recentDonations:  allDonations.slice(0, 5),
-      bloodStock:       buildStockMap(org),
-      dispenseHistory:  (org.dispenseHistory || []).slice(-5).reverse(),
+      recentDonations: allDonations.slice(0, 5),
+      bloodStock:      buildStockMap(org),
+      dispenseHistory: (org.dispenseHistory || []).slice(-5).reverse(),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

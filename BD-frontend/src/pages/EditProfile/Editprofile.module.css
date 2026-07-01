@@ -12,28 +12,10 @@
   padding: 14px 40px;
   background: #fff;
   border-bottom: 1px solid #e5e7eb;
-  /* gap: 24px; */
   justify-content: space-between;
 }
 
 .logo { cursor: pointer; }
-
-.navLinks {
-  display: flex;
-  gap: 32px;
-  flex: 1;
-  justify-content: center;
-}
-
-.navLink {
-  text-decoration: none;
-  color: #374151;
-  font-size: 15px;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.navLink:hover { color: #9f1239; }
 
 .navRight {
   display: flex;
@@ -75,6 +57,77 @@
   margin: 0 auto;
   padding: 36px 20px;
 }
+
+/* ── Org code section ── */
+.orgSection {
+  margin-top: 4px;
+}
+
+.orgLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.orgLinkedList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.orgLinkedItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.orgAddRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.orgCodeInput {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.orgCodeInput:focus {
+  border-color: #9f1239;
+}
+
+.orgAddBtn {
+  padding: 9px 18px;
+  background: #9f1239;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.orgAddBtn:hover { background: #7f1d1d; }
 
 /* ── Feedback messages ── */
 .success {
@@ -124,7 +177,7 @@
 .submitBtn {
   padding: 11px 28px;
   border-radius: 8px;
-  background: #111827;
+  background: #9f1239;
   color: #fff;
   border: none;
   font-weight: 700;
@@ -136,5 +189,5 @@
   transition: background 0.2s;
 }
 
-.submitBtn:hover { background: #374151; }
-.submitBtn:disabled { background: #9ca3af; cursor: not-allowed; }
+.submitBtn:hover { background: #7f1d1d; }
+.submitBtn:disabled { background: #d1a3ab; cursor: not-allowed; }

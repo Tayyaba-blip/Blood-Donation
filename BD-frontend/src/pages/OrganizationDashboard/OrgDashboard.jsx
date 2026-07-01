@@ -1,417 +1,9 @@
-// import { useState, useEffect } from "react";
-// import styles from "./OrgDashboard.module.css";
-
-// const GAP = 90;
-
-// function daysUntil(lastDate) {
-//   if (!lastDate) return 0;
-//   const diff = Math.floor((new Date() - new Date(lastDate)) / 86400000);
-//   return diff >= GAP ? 0 : GAP - diff;
-// }
-// function isEligible(lastDate) {
-//   if (!lastDate) return true;
-//   return Math.floor((new Date() - new Date(lastDate)) / 86400000) >= GAP;
-// }
-
-// // ─── Record Donation Modal ───────────────────────────────────────────────────
-// function RecordModal({ donor, token, onClose, onSuccess }) {
-//   const [form, setForm]     = useState({ units: "", date: "", location: "" });
-//   const [saving, setSaving] = useState(false);
-//   const [error, setError]   = useState("");
-//   const [success, setSuccess] = useState("");
-
-//   const handleSave = async () => {
-//     if (!form.units || !form.date) return setError("Units and date are required.");
-//     setSaving(true); setError("");
-//     try {
-//       const res = await fetch("/api/org/donations/record", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-//         body: JSON.stringify({ donorId: donor._id, ...form }),
-//       });
-//       const data = await res.json();
-//       if (!res.ok) return setError(data.error || "Failed to record.");
-//       setSuccess("Donation recorded successfully!");
-//       setTimeout(() => { onSuccess(); onClose(); }, 1200);
-//     } catch {
-//       setError("Network error.");
-//     } finally {
-//       setSaving(false);
-//     }
-//   };
-
-//   return (
-//     <div className={styles.overlay} onClick={onClose}>
-//       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-//         <h2 className={styles.modalTitle}>
-//           Record Donation — {donor.firstName} {donor.lastName}
-//         </h2>
-
-//         {error   && <p className={styles.modalError}>{error}</p>}
-//         {success && <p className={styles.modalSuccess}>{success}</p>}
-
-//         <div className={styles.modalField}>
-//           <label className={styles.modalLabel}>Date of Donation</label>
-//           <input type="date" className={styles.modalInput}
-//             value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-//         </div>
-//         <div className={styles.modalField}>
-//           <label className={styles.modalLabel}>Blood Units (ml)</label>
-//           <input type="number" className={styles.modalInput} placeholder="e.g. 450"
-//             value={form.units} onChange={(e) => setForm({ ...form, units: e.target.value })} />
-//         </div>
-//         <div className={styles.modalField}>
-//           <label className={styles.modalLabel}>Location (optional)</label>
-//           <input type="text" className={styles.modalInput} placeholder="Blood bank / hospital"
-//             value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-//         </div>
-
-//         <div className={styles.modalBtns}>
-//           <button className={styles.modalCancel} onClick={onClose}>Cancel</button>
-//           <button className={styles.modalSave} onClick={handleSave} disabled={saving}>
-//             {saving ? "Saving…" : "Save Donation"}
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// // ─── Donor Detail Panel ──────────────────────────────────────────────────────
-// function DonorDetail({ donor, onBack, onRecord }) {
-//   const eligible = isEligible(donor.lastDonationDate);
-//   const days     = daysUntil(donor.lastDonationDate);
-
-//   const rows = [
-//     ["Phone",              donor.phone],
-//     ["Email",              donor.email],
-//     ["Age",                donor.age],
-//     ["District",           donor.district],
-//     ["Province",           donor.province],
-//     ["Last Donation",      donor.lastDonationDate || "N/A"],
-//     ["Health Issues",      donor.healthIssues     || "None"],
-//     ["Medications",        donor.currentMedications || "None"],
-//     ["Recent Surgery",     donor.recentSurgery    || "No"],
-//     ["Smoker",             donor.smoker           || "No"],
-//     ["Alcohol",            donor.alcoholic        || "No"],
-//     ["Allergies",          donor.allergies        || "None"],
-//   ];
-
-//   const flagged = ["Yes"];
-
-//   return (
-//     <div className={styles.detailPanel}>
-//       <button className={styles.backBtn} onClick={onBack}>← Back to Donors</button>
-
-//       <div className={styles.detailHeader}>
-//         <div className={styles.detailAvatar}>
-//           {donor.firstName?.[0]}{donor.lastName?.[0]}
-//         </div>
-//         <div>
-//           <p className={styles.detailName}>{donor.firstName} {donor.lastName}</p>
-//           <p className={styles.detailBG}>Blood Group: <strong>{donor.bloodGroup || "N/A"}</strong></p>
-//           <span className={`${styles.pill} ${eligible ? styles.pillGreen : styles.pillRed}`}>
-//             {eligible ? "Eligible" : `Eligible in ${days} days`}
-//           </span>
-//         </div>
-//       </div>
-
-//       {rows.map(([label, value]) => (
-//         <div key={label} className={styles.detailRow}>
-//           <span className={styles.detailLabel}>{label}</span>
-//           <span className={`${styles.detailValue} ${flagged.includes(value) ? styles.flagged : ""}`}>
-//             {value || "—"}
-//           </span>
-//         </div>
-//       ))}
-
-//       {/* Donation history */}
-//       {donor.donationHistory?.length > 0 && (
-//         <>
-//           <p style={{ fontWeight: 700, marginTop: 18, marginBottom: 8 }}>Donation History</p>
-//           <table className={styles.table}>
-//             <thead>
-//               <tr>
-//                 <th className={styles.th}>Date</th>
-//                 <th className={styles.th}>Units (ml)</th>
-//                 <th className={styles.th}>Location</th>
-//               </tr>
-//             </thead>
-//             <tbody>
-//               {donor.donationHistory.map((d, i) => (
-//                 <tr key={i}>
-//                   <td className={styles.td}>{d.date}</td>
-//                   <td className={styles.td}>{d.units}</td>
-//                   <td className={styles.td}>{d.location || "—"}</td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
-//         </>
-//       )}
-
-//       {eligible && (
-//         <button className={styles.recordBtn} onClick={() => onRecord(donor)}>
-//           + Record Donation
-//         </button>
-//       )}
-//     </div>
-//   );
-// }
-
-// // ─── Main Dashboard ──────────────────────────────────────────────────────────
-// export default function OrgDashboard() {
-//   const token = localStorage.getItem("token");
-
-//   const [org,     setOrg]     = useState(null);
-//   const [stats,   setStats]   = useState(null);
-//   const [donors,  setDonors]  = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [search,  setSearch]  = useState("");
-//   const [selected, setSelected] = useState(null); // donor detail view
-//   const [recording, setRecording] = useState(null); // donor to record for
-
-//   const fetchAll = async () => {
-//     try {
-//       const headers = { Authorization: `Bearer ${token}` };
-//       const [orgRes, statsRes, donorsRes] = await Promise.all([
-//         fetch("/api/org/profile", { headers }),
-//         fetch("/api/org/stats",   { headers }),
-//         fetch("/api/org/donors",  { headers }),
-//       ]);
-//       const [orgData, statsData, donorsData] = await Promise.all([
-//         orgRes.json(), statsRes.json(), donorsRes.json(),
-//       ]);
-//       setOrg(orgData);
-//       setStats(statsData);
-//       setDonors(Array.isArray(donorsData) ? donorsData : []);
-//     } catch {
-//       // handle silently
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   useEffect(() => { fetchAll(); }, []);
-
-//   const handleLogout = () => {
-//     localStorage.clear();
-//     window.location.href = "/login";
-//   };
-
-//   if (loading) return <div className={styles.center}>Loading dashboard…</div>;
-//   if (!org)    return <div className={styles.center}>⚠ Failed to load. Please log in again.</div>;
-
-//   const filteredDonors = donors.filter((d) => {
-//     const q = search.toLowerCase();
-//     return (
-//       `${d.firstName} ${d.lastName}`.toLowerCase().includes(q) ||
-//       (d.bloodGroup || "").toLowerCase().includes(q) ||
-//       (d.district   || "").toLowerCase().includes(q)
-//     );
-//   });
-
-//   const maxBG = stats ? Math.max(...Object.values(stats.bloodGroups || {}), 1) : 1;
-
-//   return (
-//     <div className={styles.page}>
-
-//       {/* ── Nav ── */}
-//       <nav className={styles.nav}>
-//         <div className={styles.logo}>
-//           <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
-//             <circle cx="20" cy="20" r="19" stroke="#7f1d1d" strokeWidth="2" />
-//             <path d="M20 8 C14 14 10 18 10 23 a10 10 0 0 0 20 0 C30 18 26 14 20 8z" fill="#9f1239" />
-//           </svg>
-//         </div>
-        
-//         <div className={styles.navRight}>
-//           <div className={styles.avatar}>{org.organizationName?.[0]}</div>
-//           <button className={styles.logoutBtn} onClick={handleLogout}>Log Out</button>
-//         </div>
-//       </nav>
-
-//       <div className={styles.body}>
-
-//         {/* ── Org header card ── */}
-//         <div className={styles.orgCard}>
-//           <div>
-//             <h1 className={styles.orgName}>{org.organizationName}</h1>
-//             <p className={styles.orgMeta}>📍 {org.address}</p>
-//             <p className={styles.orgMeta}>👤 {org.headName} &nbsp;|&nbsp; 📞 {org.phone}</p>
-//           </div>
-//           <div className={styles.codeBadge}>
-//             <p className={styles.codeLabel}>Organization Code</p>
-//             <p className={styles.codeValue}>{org.orgCode}</p>
-//             <p className={styles.codeHint}>Share with donors to link</p>
-//           </div>
-//         </div>
-
-//         {/* ── Stats row ── */}
-//         {stats && (
-//           <div className={styles.statsRow}>
-//             <div className={styles.statCard}>
-//               <p className={styles.statNum}>{stats.total}</p>
-//               <p className={styles.statLabel}>Total Donors</p>
-//             </div>
-//             <div className={styles.statCard}>
-//               <p className={`${styles.statNum} ${styles.statEligible}`}>{stats.eligible}</p>
-//               <p className={styles.statLabel}>Eligible to Donate</p>
-//             </div>
-//             <div className={styles.statCard}>
-//               <p className={`${styles.statNum} ${styles.statNot}`}>{stats.notEligible}</p>
-//               <p className={styles.statLabel}>Not Eligible</p>
-//             </div>
-//             <div className={styles.statCard}>
-//               <p className={styles.statNum}>{stats.totalDonations}</p>
-//               <p className={styles.statLabel}>Total Donations</p>
-//             </div>
-//           </div>
-//         )}
-
-//         <div className={styles.grid}>
-
-//           {/* ── Left: Donor list OR detail ── */}
-//           <div>
-//             {selected ? (
-//               <DonorDetail
-//                 donor={selected}
-//                 onBack={() => setSelected(null)}
-//                 onRecord={(d) => setRecording(d)}
-//               />
-//             ) : (
-//               <div className={styles.card}>
-//                 <div className={styles.cardHeader}>
-//                   <h2 className={styles.cardTitle}>Linked Donors ({donors.length})</h2>
-//                 </div>
-//                 <input
-//                   className={styles.searchBar}
-//                   placeholder="Search by name, blood group or district…"
-//                   value={search}
-//                   onChange={(e) => setSearch(e.target.value)}
-//                 />
-//                 {filteredDonors.length === 0 ? (
-//                   <p className={styles.empty}>
-//                     {donors.length === 0
-//                       ? "No donors linked yet. Share your org code with donors."
-//                       : "No donors match your search."}
-//                   </p>
-//                 ) : (
-//                   <table className={styles.table}>
-//                     <thead>
-//                       <tr>
-//                         <th className={styles.th}>Name</th>
-//                         <th className={styles.th}>Blood</th>
-//                         <th className={styles.th}>District</th>
-//                         <th className={styles.th}>Status</th>
-//                         <th className={styles.th}></th>
-//                       </tr>
-//                     </thead>
-//                     <tbody>
-//                       {filteredDonors.map((d) => {
-//                         const elig = isEligible(d.lastDonationDate);
-//                         return (
-//                           <tr key={d._id}>
-//                             <td className={styles.td}>
-//                               {d.firstName} {d.lastName}
-//                             </td>
-//                             <td className={styles.td}>
-//                               <span className={`${styles.pill} ${styles.pillBlue}`}>
-//                                 {d.bloodGroup || "N/A"}
-//                               </span>
-//                             </td>
-//                             <td className={styles.td}>{d.district || "—"}</td>
-//                             <td className={styles.td}>
-//                               <span className={`${styles.pill} ${elig ? styles.pillGreen : styles.pillRed}`}>
-//                                 {elig ? "Eligible" : `${daysUntil(d.lastDonationDate)}d`}
-//                               </span>
-//                             </td>
-//                             <td className={styles.td}>
-//                               <button className={styles.viewBtn} onClick={() => setSelected(d)}>
-//                                 View
-//                               </button>
-//                             </td>
-//                           </tr>
-//                         );
-//                       })}
-//                     </tbody>
-//                   </table>
-//                 )}
-//               </div>
-//             )}
-//           </div>
-
-//           {/* ── Right: Blood group chart + recent donations ── */}
-//           <div>
-//             {/* Blood group breakdown */}
-//             <div className={styles.card}>
-//               <div className={styles.cardHeader}>
-//                 <h2 className={styles.cardTitle}>Blood Group Breakdown</h2>
-//               </div>
-//               {stats && Object.keys(stats.bloodGroups || {}).length > 0 ? (
-//                 Object.entries(stats.bloodGroups)
-//                   .sort((a, b) => b[1] - a[1])
-//                   .map(([bg, count]) => (
-//                     <div key={bg} className={styles.bgRow}>
-//                       <span className={styles.bgLabel}>{bg}</span>
-//                       <div className={styles.bgBar}>
-//                         <div
-//                           className={styles.bgFill}
-//                           style={{ width: `${(count / maxBG) * 100}%` }}
-//                         />
-//                       </div>
-//                       <span className={styles.bgCount}>{count}</span>
-//                     </div>
-//                   ))
-//               ) : (
-//                 <p className={styles.empty}>No data yet.</p>
-//               )}
-//             </div>
-
-//             {/* Recent donations */}
-//             <div className={styles.card}>
-//               <div className={styles.cardHeader}>
-//                 <h2 className={styles.cardTitle}>Recent Donations</h2>
-//               </div>
-//               {stats?.recentDonations?.length > 0 ? (
-//                 <div className={styles.donorDetailRow}>
-//                   {stats.recentDonations.map((d, i) => (
-//                     <div key={i} className={styles.donationEntry}>
-//                       <div>
-//                         <p className={styles.deName}>{d.donorName}</p>
-//                         <p className={styles.deMeta}>
-//                           {d.date} · {d.location || "Blood bank"} ·{" "}
-//                           <span className={`${styles.pill} ${styles.pillBlue}`}>{d.bloodGroup}</span>
-//                         </p>
-//                       </div>
-//                       <span className={styles.deUnits}>{d.units} ml</span>
-//                     </div>
-//                   ))}
-//                 </div>
-//               ) : (
-//                 <p className={styles.empty}>No donations recorded yet.</p>
-//               )}
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* ── Record Donation Modal ── */}
-//       {recording && (
-//         <RecordModal
-//           donor={recording}
-//           token={token}
-//           onClose={() => setRecording(null)}
-//           onSuccess={() => { fetchAll(); setSelected(null); }}
-//         />
-//       )}
-//     </div>
-//   );
-// }
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./OrgDashboard.module.css";
+import LocationPicker from "../../components/LocationPicker"; 
+import BadgeCard from "../../components/BadgeCard";
+import NotificationBell from "../../components/NotificationBell";
 
 const GAP = 90;
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -679,19 +271,80 @@ function DonorDetail({ donor, onBack, onRecord }) {
   );
 }
 
+// ─── Location Card ────────────────────────────────────────────────────────────
+function LocationCard({ org, token, onUpdated }) {
+  const [editing, setEditing] = useState(false);
+  const [status, setStatus] = useState("");
+
+  const coords = org.location?.coordinates;
+  const hasLocation = coords && (coords[0] !== 0 || coords[1] !== 0);
+
+  const handleUpdateLocation = ({ lat, lng }) => {
+    setStatus("Saving...");
+    fetch("/api/org/update-location", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ latitude: lat, longitude: lng }),
+    })
+      .then((r) => r.json())
+      .then(() => {
+        setStatus("✅ Location updated.");
+        setEditing(false);
+        onUpdated();
+      })
+      .catch(() => setStatus("❌ Failed to update location."));
+  };
+
+  return (
+    <div className={styles.card}>
+      <div className={styles.cardHeader}>
+        <h2 className={styles.cardTitle}>📍 Organization Location</h2>
+      </div>
+      {hasLocation ? (
+        <p style={{ fontSize: 14, color: "#4b5563", marginBottom: 12 }}>
+          Saved location: ({coords[1].toFixed(5)}, {coords[0].toFixed(5)})
+        </p>
+      ) : (
+        <p style={{ fontSize: 14, color: "#4b5563", marginBottom: 12 }}>
+          No location set yet.
+        </p>
+      )}
+      {!editing ? (
+        <button className={styles.viewBtn} onClick={() => setEditing(true)}>
+          {hasLocation ? "Update Location" : "Set Location"}
+        </button>
+      ) : (
+        <>
+          <LocationPicker
+            onLocationSelect={handleUpdateLocation}
+            initialPosition={hasLocation ? [coords[1], coords[0]] : null}
+          />
+          <button className={styles.modalCancel} style={{ marginTop: 10 }} onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </>
+      )}
+      {status && <p style={{ fontSize: 13, marginTop: 8, color: "#16a34a" }}>{status}</p>}
+    </div>
+  );
+}
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function OrgDashboard() {
   const token    = localStorage.getItem("token");
   const navigate = useNavigate();
 
-  const [org,       setOrg]       = useState(null);
-  const [stats,     setStats]     = useState(null);
-  const [donors,    setDonors]    = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [search,    setSearch]    = useState("");
-  const [selected,  setSelected]  = useState(null);
-  const [recording, setRecording] = useState(null);
-  const [dispensing,setDispensing]= useState(false);
+  const [org,          setOrg]          = useState(null);
+  const [stats,        setStats]        = useState(null);
+  const [donors,       setDonors]       = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [search,       setSearch]       = useState("");
+  const [selected,     setSelected]     = useState(null);
+  const [recording,    setRecording]    = useState(null);
+  const [dispensing,   setDispensing]   = useState(false);
 
   const fetchAll = async () => {
     try {
@@ -712,6 +365,7 @@ export default function OrgDashboard() {
   };
 
   useEffect(() => { fetchAll(); }, []);
+
 
   const handleLogout = () => { localStorage.clear(); navigate("/"); };
 
@@ -739,8 +393,9 @@ export default function OrgDashboard() {
             <path d="M20 8 C14 14 10 18 10 23 a10 10 0 0 0 20 0 C30 18 26 14 20 8z" fill="#9f1239" />
           </svg>
         </div>
-        
+
         <div className={styles.navRight}>
+          <NotificationBell/>
           <div className={styles.avatar}>{org.organizationName?.[0]}</div>
           <button className={styles.logoutBtn} onClick={handleLogout}>Log Out</button>
         </div>
@@ -842,15 +497,12 @@ export default function OrgDashboard() {
             )}
           </div>
 
-          {/* ── Right: Stock + Blood group chart + Recent donations ── */}
+          {/* ── Right column ── */}
           <div>
-            {/* Blood Stock */}
-            <StockCard
-              bloodStock={stats?.bloodStock}
-              onDispense={() => setDispensing(true)}
-            />
+            <StockCard bloodStock={stats?.bloodStock} onDispense={() => setDispensing(true)} />
+            <BadgeCard />
+            <LocationCard org={org} token={token} onUpdated={fetchAll} />
 
-            {/* Blood group (donor) breakdown */}
             <div className={styles.card}>
               <div className={styles.cardHeader}>
                 <h2 className={styles.cardTitle}>Donor Blood Groups</h2>
@@ -870,7 +522,6 @@ export default function OrgDashboard() {
               )}
             </div>
 
-            {/* Recent donations */}
             <div className={styles.card}>
               <div className={styles.cardHeader}>
                 <h2 className={styles.cardTitle}>Recent Donations</h2>
@@ -895,7 +546,6 @@ export default function OrgDashboard() {
               )}
             </div>
 
-            {/* Recent dispenses */}
             {stats?.dispenseHistory?.length > 0 && (
               <div className={styles.card}>
                 <div className={styles.cardHeader}>
@@ -921,7 +571,6 @@ export default function OrgDashboard() {
         </div>
       </div>
 
-      {/* ── Modals ── */}
       {recording && (
         <RecordModal donor={recording} token={token}
           onClose={() => setRecording(null)}

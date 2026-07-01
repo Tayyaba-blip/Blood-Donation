@@ -13,6 +13,7 @@ import {
   dispenseBlood,
   getStock,
   getOrgStats,
+  updateOrgLocation,
 } from "../controllers/orgDashboardController.js";
 
 const router = express.Router();
@@ -43,5 +44,6 @@ router.post("/donations/record",    orgAuth, recordDonation);
 router.post("/stock/dispense",      orgAuth, dispenseBlood);   // ← new
 router.get("/stock",                orgAuth, getStock);         // ← new
 router.get("/stats",                orgAuth, getOrgStats);
+router.put("/update-location", orgAuth, updateOrgLocation);
 
 export default router;

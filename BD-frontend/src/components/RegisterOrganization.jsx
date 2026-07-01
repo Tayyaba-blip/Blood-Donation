@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styles from "./RegisterOrganization.module.css";
+import LocationPicker from "./LocationPicker";
 
 const PROVINCE_DISTRICTS = {
   Punjab: ["Lahore","Faisalabad","Rawalpindi","Gujranwala","Multan","Sialkot","Bahawalpur","Sargodha","Sheikhupura","Jhang","Rahim Yar Khan","Gujrat","Kasur","Sahiwal","Okara","Dera Ghazi Khan","Muzaffargarh","Pakpattan","Hafizabad","Attock"],
@@ -25,6 +26,8 @@ const RegisterOrganization = () => {
     phone: "",
     email: "",
     password: "",
+    latitude: null,
+    longitude: null,
   });
 
   const districts = formData.province ? PROVINCE_DISTRICTS[formData.province] || [] : [];
@@ -39,10 +42,18 @@ const RegisterOrganization = () => {
     setError("");
   };
 
+  const handleLocationSelect = ({ lat, lng }) => {
+    setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+    setError("");
+  };
+
   const handleSendOTP = async () => {
-    const { organizationName, address, province, district, headName, phone, email, password } = formData;
+    const { organizationName, address, province, district, headName, phone, email, password, latitude, longitude } = formData;
     if (!organizationName || !address || !province || !district || !headName || !phone || !email || !password) {
       return setError("All fields are required.");
+    }
+    if (!latitude || !longitude) {
+      return setError("Please set your organization's location on the map.");
     }
     setLoading(true);
     try {
@@ -122,6 +133,12 @@ const RegisterOrganization = () => {
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
+          </div>
+
+          {/* Location picker */}
+          <div className={styles["form-group"]}>
+            <label>Pin Organization Location</label>
+            <LocationPicker onLocationSelect={handleLocationSelect} />
           </div>
 
           <div className={styles["form-group"]}>

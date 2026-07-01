@@ -1,5 +1,5 @@
 import express from "express";
-import { registerDonor, getDonors, getDonorProfile, updateDonorProfile} from "../controllers/donorController.js";
+import { registerDonor, getDonors, getDonorProfile, updateDonorProfile, updateDonorLocation} from "../controllers/donorController.js";
 import jwt from "jsonwebtoken";
 
 const router = express.Router();
@@ -18,6 +18,7 @@ function donorAuth(req, res, next) {
  
 router.get("/profile", donorAuth, getDonorProfile);
 router.put("/profile", donorAuth, updateDonorProfile);
+router.put("/update-location", donorAuth, updateDonorLocation);
 // Register new donor
 router.post("/register", registerDonor);
 

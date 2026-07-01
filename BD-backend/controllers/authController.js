@@ -3,6 +3,7 @@ import OTP from '../models/OTP.js';
 import { generateOTP, sendOTP } from '../utils/sendOTP.js';
 import generateToken from '../utils/generateToken.js';
 
+
 // @desc    Send OTP for registration
 // @route   POST /api/auth/send-registration-otp
 // @access  Public
@@ -138,6 +139,7 @@ export const verifyRegistrationOTP = async (req, res) => {
       district: donorData.district
     });
     
+
     // Create donor with password from donorData
     const donor = new Donor({
       firstName: donorData.firstName,
@@ -157,7 +159,11 @@ export const verifyRegistrationOTP = async (req, res) => {
       },
       agreedToTerms: donorData.agreedToTerms, // Make sure this is included
       isVerified: true,
-      isActive: true
+      isActive: true,
+      location: {
+        type: "Point",
+        coordinates: [donorData.longitude, donorData.latitude], // [lng, lat] order!
+      },
     });
     
     console.log('💾 Saving donor to database...');

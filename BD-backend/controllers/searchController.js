@@ -1,4 +1,20 @@
 import Organization from "../models/Organization.js";
+import Donor from "../models/Donor.js";
+
+// Adds a random offset within ~200m so exact home location isn't exposed
+function jitterCoordinates([lng, lat], maxMeters = 200) {
+  const earthRadius = 6378137; // meters
+  const randomDistance = Math.random() * maxMeters;
+  const randomAngle = Math.random() * 2 * Math.PI;
+
+  const dLat = (randomDistance * Math.cos(randomAngle)) / earthRadius;
+  const dLng = (randomDistance * Math.sin(randomAngle)) / (earthRadius * Math.cos((lat * Math.PI) / 180));
+
+  return [
+    lng + (dLng * 180) / Math.PI,
+    lat + (dLat * 180) / Math.PI,
+  ];
+}
 
 export const searchBlood = async (req, res) => {
   try {
@@ -66,6 +82,104 @@ export const searchBlood = async (req, res) => {
     res.json({ results });
   } catch (err) {
     console.error("searchBlood error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/search/nearby?lat=...&lng=...&radius=5000&bloodGroup=O+
+export const searchNearbyDonors = async (req, res) => {
+  try {
+    const { lat, lng, radius, bloodGroup } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ error: "Latitude and longitude are required." });
+    }
+
+    const maxDistance = parseInt(radius) || 5000;
+
+    const query = {
+      location: {
+        $near: {
+          $geometry: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
+          $maxDistance: maxDistance,
+        },
+      },
+    };
+    if (bloodGroup) query.bloodGroup = bloodGroup;
+
+    const donors = await Donor.find(query).select(
+      "firstName lastName bloodGroup phone location lastDonationDate donationHistory"
+    );
+
+    const results = donors.map((d) => {
+      const isEligible = !d.lastDonationDate ||
+        Math.floor((new Date() - new Date(d.lastDonationDate)) / 86400000) >= 90;
+
+      const donationCount = d.donationHistory?.length || 0;
+      const reliability = donationCount >= 5 ? "high" : donationCount >= 2 ? "medium" : "new";
+
+      return {
+        id: d._id,
+        name: `${d.firstName} ${d.lastName}`,
+        bloodGroup: d.bloodGroup,
+        phone: d.phone,
+        coordinates: jitterCoordinates(d.location.coordinates),
+        isEligible,
+        donationCount,
+        reliability,
+      };
+    });
+
+    res.json({ donors: results, count: results.length });
+  } catch (err) {
+    console.error("searchNearbyDonors error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+// GET /api/search/nearby-orgs?lat=...&lng=...&radius=5000&bloodGroup=O+
+export const searchNearbyOrgs = async (req, res) => {
+  try {
+    const { lat, lng, radius, bloodGroup } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ error: "Latitude and longitude are required." });
+    }
+
+    const maxDistance = parseInt(radius) || 5000;
+
+    const orgs = await Organization.find({
+      isActive: true,
+      location: {
+        $near: {
+          $geometry: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
+          $maxDistance: maxDistance,
+        },
+      },
+    }).select("organizationName address phone bloodStock location");
+
+    const results = orgs
+      .map((org) => {
+        const stock = {};
+        if (org.bloodStock) {
+          org.bloodStock.forEach((value, key) => {
+            if (value > 0) stock[key] = value;
+          });
+        }
+        const requestedStock = bloodGroup ? (org.bloodStock?.get(bloodGroup) || 0) : null;
+
+        return {
+          id: org._id,
+          organizationName: org.organizationName,
+          address: org.address,
+          phone: org.phone,
+          coordinates: org.location.coordinates,
+          stock,
+          requestedStock,
+        };
+      })
+      // .filter((org) => (bloodGroup ? org.requestedStock > 0 : Object.keys(org.stock).length > 0));
+
+    res.json({ organizations: results, count: results.length });
+  } catch (err) {
+    console.error("searchNearbyOrgs error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };

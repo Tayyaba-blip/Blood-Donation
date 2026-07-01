@@ -2,6 +2,7 @@ import Organization from "../models/Organization.js";
 import OTP from "../models/OTP.js";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
+import { geocodeAddress } from "../utils/geocode.js";
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -27,9 +28,9 @@ function getTransporter() {
 // POST /api/org/register/send-otp
 export const sendRegisterOTP = async (req, res) => {
   try {
-    const { organizationName, address, province, district, headName, phone, email, password } = req.body;
+    const { organizationName, address, province, district, headName, phone, email, password, latitude, longitude} = req.body;
 
-    if (!organizationName || !address || !headName || !phone || !email || !password || !province || !district) {
+    if (!organizationName || !address || !headName || !phone || !email || !password || !province || !district || !latitude || !longitude) {
       return res.status(400).json({ error: "All fields are required." });
     }
 
@@ -67,7 +68,7 @@ export const sendRegisterOTP = async (req, res) => {
 // POST /api/org/register/verify-otp
 export const verifyRegisterOTP = async (req, res) => {
   try {
-    const { organizationName, address, headName, phone, email, password, otp } = req.body;
+    const { organizationName, address, province, district, headName, phone, email, password, otp, latitude, longitude } = req.body;
 
     const record = await OTP.findOne({ email, purpose: "registration" });
     if (!record) return res.status(400).json({ error: "OTP not found. Please request again." });
@@ -82,6 +83,10 @@ export const verifyRegisterOTP = async (req, res) => {
     const org = await Organization.create({
       organizationName, address, province, district, headName, phone, email, password,
       isVerified: true,
+      location: {
+        type: "Point",
+        coordinates: [longitude, latitude],
+      },
     });
 
     await OTP.deleteMany({ email, purpose: "registration" });

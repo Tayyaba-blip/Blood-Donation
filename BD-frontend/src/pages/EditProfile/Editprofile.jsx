@@ -9,6 +9,7 @@ const YES_NO = ["Yes", "No"];
 
 export default function EditProfile() {
   const token = localStorage.getItem("token");
+  const [newOrgCode, setNewOrgCode] = useState("");
 
   const [form, setForm] = useState({
     firstName: "", lastName: "", phone: "", email: "",
@@ -101,14 +102,42 @@ export default function EditProfile() {
           <Field label="District" name="district" value={form.district} onChange={handleChange} placeholder="District" half />
           <Field label="Province" name="province" value={form.province} onChange={handleChange} placeholder="Province" half />
           <Field label="PinCode"  name="pincode"  value={form.pincode}  onChange={handleChange} placeholder="PinCode" quarter />
-          <Field
-  label="Organization Code"
-  name="organizationCode"
-  value={form.organizationCode || ""}
-  onChange={handleChange}
-  placeholder="Enter 6-character code from your blood bank"
-  half
-/>
+         <div className={styles.orgSection}>
+  <label className={styles.orgLabel}>Linked Organizations</label>
+
+  {form.linkedOrganizations?.length > 0 && (
+    <div className={styles.orgLinkedList}>
+      {form.linkedOrganizations.map((link, i) => (
+        <div key={i} className={styles.orgLinkedItem}>
+          🩸 {link.organization?.organizationName || link.orgCode}
+        </div>
+      ))}
+    </div>
+  )}
+
+  <div className={styles.orgAddRow}>
+    <input
+      type="text"
+      className={styles.orgCodeInput}
+      placeholder="Enter org code (e.g. AB12CD)"
+      value={newOrgCode}
+      onChange={(e) => setNewOrgCode(e.target.value.toUpperCase())}
+      maxLength={6}
+    />
+    <button
+      type="button"
+      className={styles.orgAddBtn}
+      onClick={() => {
+        if (newOrgCode.length === 6) {
+          setForm((prev) => ({ ...prev, organizationCode: newOrgCode }));
+          setNewOrgCode("");
+        }
+      }}
+    >
+      + Link Org
+    </button>
+  </div>
+</div>
         </Section>
 
         <Section title="Donation Information">

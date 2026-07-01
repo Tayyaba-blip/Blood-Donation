@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import styles from "./Dashboard.module.css";
+import Chatbot from "./Chatbot"; // ← add, adjust path to wherever it actually lives
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -151,6 +152,8 @@ const Dashboard = () => {
         </div>
 
       </div>
+
+      <Chatbot />  {/* ← add, anywhere in the tree works since it's position: fixed */}
 
     </div>
   );

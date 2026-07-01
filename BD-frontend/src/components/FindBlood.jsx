@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styles from "./FindBlood.module.css";
+import NearbyDonorsMap from "./NearbyDonorsMap";
 
 const PROVINCE_DISTRICTS = {
   Punjab: ["Lahore","Faisalabad","Rawalpindi","Gujranwala","Multan","Sialkot","Bahawalpur","Sargodha","Sheikhupura","Jhang","Rahim Yar Khan","Gujrat","Kasur","Sahiwal","Okara","Dera Ghazi Khan","Muzaffargarh","Pakpattan","Hafizabad","Attock"],
@@ -92,6 +93,7 @@ const FindBlood = () => {
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState("");
   const [locLoading, setLocLoading] = useState(false);
+  const [searchMode, setSearchMode] = useState("district");
 
   const districts = formData.province ? PROVINCE_DISTRICTS[formData.province] || [] : [];
 
@@ -106,39 +108,88 @@ const FindBlood = () => {
   };
 
   const handleCurrentLocation = () => {
-    if (!navigator.geolocation) return setError("Geolocation not supported.");
-    setLocLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
-          const data = await res.json();
-          const addr = data.address || {};
-          const detectedState = addr.state || "";
-          const matchedProvince = Object.keys(PROVINCE_DISTRICTS).find((p) =>
-            detectedState.toLowerCase().includes(p.toLowerCase())
+  if (!navigator.geolocation) return setError("Geolocation not supported.");
+  setLocLoading(true);
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      try {
+        const { latitude, longitude } = pos.coords;
+
+        // Reverse geocode to get province/district
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+        );
+        const data = await res.json();
+        const addr = data.address || {};
+        const detectedState = addr.state || "";
+        const matchedProvince = Object.keys(PROVINCE_DISTRICTS).find((p) =>
+          detectedState.toLowerCase().includes(p.toLowerCase())
+        );
+        const detectedCity = addr.city || addr.town || addr.county || addr.district || "";
+        const matchedDistrict = matchedProvince
+          ? PROVINCE_DISTRICTS[matchedProvince].find((d) =>
+              detectedCity.toLowerCase().includes(d.toLowerCase())
+            )
+          : null;
+
+        const updatedForm = {
+          ...formData,
+          province: matchedProvince || formData.province,
+          district: matchedDistrict || formData.district,
+        };
+
+        setFormData(updatedForm);
+
+        // ── Auto-search with detected location ──
+        if (matchedProvince && matchedDistrict) {
+          setLoading(true);
+          setError("");
+          setResults(null);
+
+          const params = new URLSearchParams({
+            province: matchedProvince,
+            district: matchedDistrict,
+            ...(updatedForm.bloodGroup ? { bloodGroup: updatedForm.bloodGroup } : {}),
+          });
+
+          const searchRes = await fetch(`/api/search/blood?${params}`);
+          const searchData = await searchRes.json();
+
+          if (!searchRes.ok) {
+            setError(searchData.error || "Search failed.");
+          } else {
+            setResults(searchData.results);
+            setTimeout(() => {
+              document.getElementById("findblood-results")?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }, 100);
+          }
+
+          setLoading(false);
+        } else {
+          // Detected location but couldn't match to a known province/district
+          setError(
+            `Detected location near "${detectedCity || detectedState}" — please select province/district manually if not auto-filled.`
           );
-          const detectedCity = addr.city || addr.town || addr.county || addr.district || "";
-          const matchedDistrict = matchedProvince
-            ? PROVINCE_DISTRICTS[matchedProvince].find((d) =>
-                detectedCity.toLowerCase().includes(d.toLowerCase())
-              )
-            : null;
-          setFormData((prev) => ({
-            ...prev,
-            province: matchedProvince || prev.province,
-            district: matchedDistrict || prev.district,
-          }));
-        } catch {
-          setError("Could not detect location. Please select manually.");
-        } finally {
-          setLocLoading(false);
         }
-      },
-      () => { setError("Location access denied."); setLocLoading(false); }
-    );
-  };
+      } catch {
+        setError("Could not detect location. Please select manually.");
+      } finally {
+        setLocLoading(false);
+      }
+    },
+    (err) => {
+      setLocLoading(false);
+      if (err.code === 1) {
+        setError("Location access denied. Allow location in your browser settings (🔒 icon in address bar) and reload.");
+      } else {
+        setError("Location unavailable. Please select province/district manually.");
+      }
+    }
+  );
+};
 
   const handleSearch = async () => {
     if (!formData.province || !formData.district) {
@@ -166,105 +217,129 @@ const FindBlood = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        {/* Left panel */}
-        <div className={styles.left}>
-          <h2 className={styles.leftTitle}>Find Blood</h2>
-          <p className={styles.leftSub}>
-            Search by blood group and location to find blood banks with available stock near you.
-          </p>
-        </div>
+  <div className={styles.container}>
 
-        {/* Right form */}
-        <div className={styles.right}>
-          <h2>Recipient Details</h2>
-
-          <div className={styles.formGroup}>
-            <label>Blood Group</label>
-            <select name="bloodGroup" value={formData.bloodGroup} onChange={handleChange}>
-              <option value="">All Blood Groups</option>
-              {BLOOD_GROUPS.map((bg) => <option key={bg} value={bg}>{bg}</option>)}
-            </select>
-          </div>
-
-          <button className={styles.locationBtn} onClick={handleCurrentLocation} disabled={locLoading}>
-            {locLoading ? "Detecting…" : "📍 Use Current Location"}
-          </button>
-
-          <p className={styles.orText}>OR</p>
-
-          <div className={styles.formGroup}>
-            <label>Province</label>
-            <select name="province" value={formData.province} onChange={handleChange}>
-              <option value="">Select Province</option>
-              {Object.keys(PROVINCE_DISTRICTS).map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-
-          <div className={styles.formGroup}>
-            <label>District</label>
-            <select name="district" value={formData.district} onChange={handleChange} disabled={!formData.province}>
-              <option value="">{formData.province ? "Select District" : "Select a province first"}</option>
-              {districts.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
-
-          {error && <p style={{ color: "#c2173d", fontSize: 13, marginBottom: 8 }}>{error}</p>}
-
-          <div className={styles.proceedRow}>
-            <button className={styles.proceedBtn} onClick={handleSearch} disabled={loading}>
-              {loading ? "Searching…" : "Proceed →"}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Results */}
-      {(loading || results !== null) && (
-        <div className={styles.resultsSection} id="findblood-results">
-          {loading ? (
-            <div className={styles.spinner}>
-              <div className={styles.spinnerDot} />
-              <div className={styles.spinnerDot} />
-              <div className={styles.spinnerDot} />
-            </div>
-          ) : (
-            <>
-              <div className={styles.resultsHeader}>
-                <h3 className={styles.resultsTitle}>
-                  {results.length > 0
-                    ? `${results.length} blood bank${results.length > 1 ? "s" : ""} with available stock`
-                    : "No results found"}
-                </h3>
-                <span className={styles.resultsMeta}>
-                  {formData.district}, {formData.province}
-                  {formData.bloodGroup && ` · ${formData.bloodGroup}`}
-                </span>
-              </div>
-
-              {results.length === 0 ? (
-                <div className={styles.noResults}>
-                  <div className={styles.noResultsIcon}>🩸</div>
-                  <p className={styles.noResultsText}>
-                    No blood banks with{" "}
-                    {formData.bloodGroup ? `${formData.bloodGroup} ` : ""}
-                    blood in stock found in {formData.district}.
-                    <br />
-                    Try a nearby district or search without a blood group filter.
-                  </p>
-                </div>
-              ) : (
-                results.map((org) => (
-                  <OrgCard key={org._id} org={org} requestedBloodGroup={formData.bloodGroup || null} />
-                ))
-              )}
-            </>
-          )}
-        </div>
-      )}
+    {/* ── Mode toggle ── */}
+    <div className={styles.searchModeToggle}>
+      <button
+        className={searchMode === "district" ? styles.modeActive : styles.modeBtn}
+        onClick={() => setSearchMode("district")}
+      >
+        Search by District
+      </button>
+      <button
+        className={searchMode === "nearby" ? styles.modeActive : styles.modeBtn}
+        onClick={() => setSearchMode("nearby")}
+      >
+        Find Donors Near Me
+      </button>
     </div>
-  );
+
+    {searchMode === "district" ? (
+      <>
+        <div className={styles.card}>
+          {/* Left panel */}
+          <div className={styles.left}>
+            <h2 className={styles.leftTitle}>Find Blood</h2>
+            <p className={styles.leftSub}>
+              Search by blood group and location to find blood banks with available stock near you.
+            </p>
+          </div>
+
+          {/* Right form */}
+          <div className={styles.right}>
+            <h2>Recipient Details</h2>
+
+            <div className={styles.formGroup}>
+              <label>Blood Group</label>
+              <select name="bloodGroup" value={formData.bloodGroup} onChange={handleChange}>
+                <option value="">All Blood Groups</option>
+                {BLOOD_GROUPS.map((bg) => <option key={bg} value={bg}>{bg}</option>)}
+              </select>
+            </div>
+
+            <button className={styles.locationBtn} onClick={handleCurrentLocation} disabled={locLoading}>
+              {locLoading ? "Detecting…" : "📍 Use Current Location"}
+            </button>
+
+            <p className={styles.orText}>OR</p>
+
+            <div className={styles.formGroup}>
+              <label>Province</label>
+              <select name="province" value={formData.province} onChange={handleChange}>
+                <option value="">Select Province</option>
+                {Object.keys(PROVINCE_DISTRICTS).map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>District</label>
+              <select name="district" value={formData.district} onChange={handleChange} disabled={!formData.province}>
+                <option value="">{formData.province ? "Select District" : "Select a province first"}</option>
+                {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+
+            {error && <p style={{ color: "#c2173d", fontSize: 13, marginBottom: 8 }}>{error}</p>}
+
+            <div className={styles.proceedRow}>
+              <button className={styles.proceedBtn} onClick={handleSearch} disabled={loading}>
+                {loading ? "Searching…" : "Proceed →"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Results */}
+        {(loading || results !== null) && (
+          <div className={styles.resultsSection} id="findblood-results">
+            {loading ? (
+              <div className={styles.spinner}>
+                <div className={styles.spinnerDot} />
+                <div className={styles.spinnerDot} />
+                <div className={styles.spinnerDot} />
+              </div>
+            ) : (
+              <>
+                <div className={styles.resultsHeader}>
+                  <h3 className={styles.resultsTitle}>
+                    {results.length > 0
+                      ? `${results.length} blood bank${results.length > 1 ? "s" : ""} with available stock`
+                      : "No results found"}
+                  </h3>
+                  <span className={styles.resultsMeta}>
+                    {formData.district}, {formData.province}
+                    {formData.bloodGroup && ` · ${formData.bloodGroup}`}
+                  </span>
+                </div>
+
+                {results.length === 0 ? (
+                  <div className={styles.noResults}>
+                    <div className={styles.noResultsIcon}>🩸</div>
+                    <p className={styles.noResultsText}>
+                      No blood banks with{" "}
+                      {formData.bloodGroup ? `${formData.bloodGroup} ` : ""}
+                      blood in stock found in {formData.district}.
+                      <br />
+                      Try a nearby district or search without a blood group filter.
+                    </p>
+                  </div>
+                ) : (
+                  results.map((org) => (
+                    <OrgCard key={org._id} org={org} requestedBloodGroup={formData.bloodGroup || null} />
+                  ))
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </>
+    ) : (
+      <NearbyDonorsMap bloodGroup={formData.bloodGroup} />
+    )}
+
+  </div>
+);
 };
 
 export default FindBlood;

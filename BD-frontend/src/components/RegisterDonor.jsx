@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import styles from "./RegisterDonor.module.css";
+import LocationPicker from "./LocationPicker";
 
 const RegisterDonor = () => {
   const navigate = useNavigate();
@@ -21,13 +22,19 @@ const RegisterDonor = () => {
     pincode: "",
     month: "",
     year: "",
-    agreedToTerms: false
+    agreedToTerms: false,
+    latitude: null,
+    longitude: null,
   });
 
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+
+  const handleLocationSelect = ({ lat, lng }) => {
+   setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+  };
 
   const handleChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -51,6 +58,11 @@ const RegisterDonor = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.latitude || !formData.longitude) {
+      setError("Please set your location on the map.");
+     return false;
+    }
     
     if (!validateForm()) return;
     
@@ -236,6 +248,10 @@ const RegisterDonor = () => {
               required
             ></textarea>
           </div>
+          <div className={styles.formRow}>
+            <label>Pin Your Location *</label>
+            <LocationPicker onLocationSelect={handleLocationSelect} />
+         </div>
 
           <div className={styles.formRow}>
             <label>Age *</label>
